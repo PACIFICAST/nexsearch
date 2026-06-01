@@ -8,111 +8,97 @@ interface Props {
   onDislike: (id: string) => void;
 }
 
-const SKELETONS = Array.from({ length: 6 });
+const SKELS = Array.from({ length: 6 });
 
-export function ComparisonPanel({
-  results,
-  isLoading,
-  onLike,
-  onDislike,
-}: Props) {
+export function ComparisonPanel({ results, isLoading, onLike, onDislike }: Props) {
+  const uniqueToHybrid = results
+    ? results.hybrid.filter(
+        h =>
+          !results.keyword_only.some(k => k.id === h.id) &&
+          !results.dense_only.some(d => d.id === h.id)
+      ).length
+    : 0;
+
   return (
     <>
-      {/* Results header */}
       {results && !isLoading && (
-        <div className="results-header">
-          <div className="results-query">
-            Results for <span>"{results.query}"</span>
+        <div className="query-stats">
+          <div className="stats-left">
+            Results for&nbsp;<strong>"{results.query}"</strong>
+            {uniqueToHybrid > 0 && (
+              <span className="stats-badge">+{uniqueToHybrid} unique to NexSearch</span>
+            )}
           </div>
-          <div className="results-count">
-            {results.hybrid.length} results · 3 methods compared
+          <div className="stats-right">
+            {results.elapsed_ms
+              ? `${results.elapsed_ms}ms · 3 methods · 3,000 products`
+              : "3 methods compared · 3,000 products"}
           </div>
         </div>
       )}
 
-      {/* 3-column grid */}
-      <div className="comparison-grid">
-
-        {/* Column 1 — Keyword only */}
+      <div className="comparison">
+        {/* Col 1 — Keyword */}
         <div className="col">
           <div className="col-header">
             <div className="col-number">Method 01</div>
             <div className="col-name">Keyword Search</div>
-            <div className="col-desc">BM25 sparse vectors only</div>
+            <div className="col-desc">BM25 sparse vectors · traditional</div>
           </div>
           <div className="col-items">
             {isLoading
-              ? SKELETONS.map((_, i) => (
-                  <SkeletonCard key={i} delay={i * 0.04} />
+              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04} />)
+              : results?.keyword_only.length
+              ? results.keyword_only.map((r, i) => (
+                  <ProductCard key={r.id} result={r} mode="keyword" delay={i * 0.05} />
                 ))
-              : results?.keyword_only.map((r, i) => (
-                  <ProductCard
-                    key={r.id}
-                    result={r}
-                    mode="keyword"
-                    animationDelay={i * 0.05}
-                  />
-                ))}
-            {!isLoading && results?.keyword_only.length === 0 && (
-              <EmptyCol />
-            )}
+              : <EmptyCol label="No keyword results" />}
           </div>
         </div>
 
-        {/* Column 2 — Dense only */}
+        {/* Col 2 — Dense */}
         <div className="col">
           <div className="col-header">
             <div className="col-number">Method 02</div>
             <div className="col-name">Semantic Search</div>
-            <div className="col-desc">Dense vectors only · MiniLM</div>
+            <div className="col-desc">Dense vectors · MiniLM</div>
           </div>
           <div className="col-items">
             {isLoading
-              ? SKELETONS.map((_, i) => (
-                  <SkeletonCard key={i} delay={i * 0.04 + 0.05} />
+              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04 + 0.06} />)
+              : results?.dense_only.length
+              ? results.dense_only.map((r, i) => (
+                  <ProductCard key={r.id} result={r} mode="dense" delay={i * 0.05} />
                 ))
-              : results?.dense_only.map((r, i) => (
-                  <ProductCard
-                    key={r.id}
-                    result={r}
-                    mode="dense"
-                    animationDelay={i * 0.05}
-                  />
-                ))}
-            {!isLoading && results?.dense_only.length === 0 && (
-              <EmptyCol />
-            )}
+              : <EmptyCol label="No semantic results" />}
           </div>
         </div>
 
-        {/* Column 3 — Hybrid + Reranked (WINNER) */}
+        {/* Col 3 — Hybrid Winner */}
         <div className="col">
           <div className="col-header">
             <div className="col-number">
               Method 03
-              <span className="col-badge">Best</span>
+              <span className="col-winner-badge">Best</span>
             </div>
             <div className="col-name">NexSearch</div>
-            <div className="col-desc">
-              Hybrid RRF · Dense + Sparse · Reranked
-            </div>
+            <div className="col-desc">Hybrid RRF · Dense + Sparse · Reranked</div>
           </div>
           <div className="col-items">
             {isLoading
-              ? SKELETONS.map((_, i) => (
-                  <SkeletonCard key={i} delay={i * 0.04 + 0.1} />
-                ))
-              : results?.hybrid.map((r, i) => (
+              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04 + 0.12} />)
+              : results?.hybrid.length
+              ? results.hybrid.map((r, i) => (
                   <ProductCard
                     key={r.id}
                     result={r}
                     mode="hybrid"
-                    animationDelay={i * 0.05}
+                    delay={i * 0.05}
                     onLike={onLike}
                     onDislike={onDislike}
                   />
-                ))}
-            {!isLoading && results?.hybrid.length === 0 && <EmptyCol />}
+                ))
+              : <EmptyCol label="No results found" />}
           </div>
         </div>
       </div>
@@ -120,11 +106,11 @@ export function ComparisonPanel({
   );
 }
 
-function EmptyCol() {
+function EmptyCol({ label }: { label: string }) {
   return (
-    <div className="state-empty">
-      <div className="state-empty-title">No results</div>
-      <div className="state-empty-sub">Try a different query</div>
+    <div className="col-empty">
+      <div className="col-empty-title">{label}</div>
+      <div className="col-empty-sub">Try a different query</div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getTrends, TrendItem } from "../api";
+import { getTrends, type TrendItem } from "../api";
 
 export function TrendDashboard() {
   const [trends, setTrends] = useState<TrendItem[]>([]);

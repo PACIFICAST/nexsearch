@@ -1,120 +1,134 @@
-import { SearchResponse } from "../api";
-import { ProductCard, SkeletonCard } from "./ProductCard";
+import { useState, useRef, useEffect } from "react";
+import { askAssistant } from "../api";
+import type { SearchResult } from "../api";
 
-interface Props {
-  results: SearchResponse | null;
-  isLoading: boolean;
-  onLike: (id: string) => void;
-  onDislike: (id: string) => void;
+interface Message {
+  role: "user" | "ai";
+  content: string;
+  products?: SearchResult[];
 }
 
-const SKELS = Array.from({ length: 6 });
+export function AIAssistant() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "ai",
+      content:
+        "Hi! I'm your AI shopping assistant. Tell me what you're looking for — I'll search the product database and recommend the best matches. Try something like \"I need a gift for my dad who likes fishing, budget $50\".",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-export function ComparisonPanel({ results, isLoading, onLike, onDislike }: Props) {
-  const uniqueToHybrid = results
-    ? results.hybrid.filter(
-        h => !results.keyword_only.some(k => k.id === h.id) &&
-             !results.dense_only.some(d => d.id === h.id)
-      ).length
-    : 0;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    const msg = input.trim();
+    if (!msg || loading) return;
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", content: msg }]);
+    setLoading(true);
+
+    try {
+      const history = messages.map(m => ({
+        role: m.role === "ai" ? "assistant" : "user",
+        content: m.content,
+      }));
+      const { reply, products } = await askAssistant(msg, history);
+      setMessages(prev => [...prev, { role: "ai", content: reply, products }]);
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        { role: "ai", content: "Sorry, I couldn't connect to the assistant right now. Please try again." },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
 
   return (
-    <>
-      {/* Stats bar */}
-      {results && !isLoading && (
-        <div className="query-stats">
-          <div className="stats-left">
-            Results for&nbsp;<strong>"{results.query}"</strong>
-            {uniqueToHybrid > 0 && (
-              <span className="stats-badge">
-                +{uniqueToHybrid} unique to NexSearch
-              </span>
-            )}
-          </div>
-          <div className="stats-right">
-            {results.elapsed_ms
-              ? `${results.elapsed_ms}ms · 3 methods · 3,000 products`
-              : "3 methods compared · 3,000 products"}
+    <div className="ai-panel">
+      <div className="ai-panel-header">
+        <div className="ai-header-left">
+          <div className="ai-orb">✦</div>
+          <div>
+            <div className="ai-panel-title">NexSearch AI</div>
+            <div className="ai-panel-sub">Powered by Groq · Grounded in your product database</div>
           </div>
         </div>
-      )}
-
-      {/* 3-column grid */}
-      <div className="comparison">
-
-        {/* Col 1 — Keyword */}
-        <div className="col">
-          <div className="col-header">
-            <div className="col-number">Method 01</div>
-            <div className="col-name">Keyword Search</div>
-            <div className="col-desc">BM25 sparse vectors · traditional</div>
-          </div>
-          <div className="col-items">
-            {isLoading
-              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04} />)
-              : results?.keyword_only.length
-              ? results.keyword_only.map((r, i) => (
-                  <ProductCard key={r.id} result={r} mode="keyword" delay={i * 0.05} />
-                ))
-              : <EmptyCol label="No keyword results" />}
-          </div>
-        </div>
-
-        {/* Col 2 — Dense */}
-        <div className="col">
-          <div className="col-header">
-            <div className="col-number">Method 02</div>
-            <div className="col-name">Semantic Search</div>
-            <div className="col-desc">Dense vectors · MiniLM</div>
-          </div>
-          <div className="col-items">
-            {isLoading
-              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04 + 0.06} />)
-              : results?.dense_only.length
-              ? results.dense_only.map((r, i) => (
-                  <ProductCard key={r.id} result={r} mode="dense" delay={i * 0.05} />
-                ))
-              : <EmptyCol label="No semantic results" />}
-          </div>
-        </div>
-
-        {/* Col 3 — Hybrid winner */}
-        <div className="col">
-          <div className="col-header">
-            <div className="col-number">
-              Method 03
-              <span className="col-winner-badge">Best</span>
-            </div>
-            <div className="col-name">NexSearch</div>
-            <div className="col-desc">Hybrid RRF · Dense + Sparse · Reranked</div>
-          </div>
-          <div className="col-items">
-            {isLoading
-              ? SKELS.map((_, i) => <SkeletonCard key={i} delay={i * 0.04 + 0.12} />)
-              : results?.hybrid.length
-              ? results.hybrid.map((r, i) => (
-                  <ProductCard
-                    key={r.id}
-                    result={r}
-                    mode="hybrid"
-                    delay={i * 0.05}
-                    onLike={onLike}
-                    onDislike={onDislike}
-                  />
-                ))
-              : <EmptyCol label="No results found" />}
-          </div>
-        </div>
+        <div className="ai-panel-badge">Live</div>
       </div>
-    </>
-  );
-}
 
-function EmptyCol({ label }: { label: string }) {
-  return (
-    <div className="col-empty">
-      <div className="col-empty-title">{label}</div>
-      <div className="col-empty-sub">Try a different query</div>
+      <div className="ai-messages">
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>
+            <div className={`msg-avatar ${m.role}`}>
+              {m.role === "user" ? "U" : "AI"}
+            </div>
+            <div>
+              <div className={`msg-bubble ${m.role}`}>{m.content}</div>
+              {m.products && m.products.length > 0 && (
+                <div className="ai-result-cards">
+                  {m.products.slice(0, 3).map(p => (
+                    <div key={p.id} className="ai-result-mini">
+                      {p.payload.brand && (
+                        <div style={{ fontSize: "0.6rem", color: "var(--coral)", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 3 }}>
+                          {p.payload.brand}
+                        </div>
+                      )}
+                      <div className="mini-title">{p.payload.title}</div>
+                      {p.payload.price && (
+                        <div className="mini-price">${p.payload.price}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="msg ai">
+            <div className="msg-avatar ai">AI</div>
+            <div className="msg-bubble ai">
+              <div className="msg-typing">
+                <span /><span /><span />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="ai-input-row">
+        <input
+          className="ai-input"
+          type="text"
+          placeholder="Ask me to find something..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          disabled={loading}
+        />
+        <button
+          className="ai-send-btn"
+          onClick={send}
+          disabled={loading || !input.trim()}
+          type="button"
+        >
+          {loading ? "..." : "Ask →"}
+        </button>
+      </div>
     </div>
   );
 }

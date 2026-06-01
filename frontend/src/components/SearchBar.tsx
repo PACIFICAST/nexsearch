@@ -1,4 +1,5 @@
-import { useState, FormEvent } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 interface Props {
   onSearch: (query: string, mode: "text" | "image") => void;
@@ -6,6 +7,8 @@ interface Props {
   onModeChange?: (mode: "text" | "image" | "ai") => void;
   activeTab: "search" | "ai" | "trends";
 }
+
+type SearchMode = "text" | "image";
 
 const SUGGESTIONS = [
   "cozy blanket for winter nights",
@@ -15,9 +18,7 @@ const SUGGESTIONS = [
   "gift for dad who likes fishing",
 ];
 
-type SearchMode = "text" | "image" | "ai";
-
-export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Props) {
+export function SearchBar({ onSearch, isLoading, onModeChange }: Props) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("text");
   const [imageUrl, setImageUrl] = useState("");
@@ -44,6 +45,11 @@ export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Prop
     onSearch(s, "text");
   };
 
+  const canSubmit =
+    !isLoading &&
+    ((mode === "text" && query.trim().length > 0) ||
+      (mode === "image" && imageUrl.trim().length > 0));
+
   return (
     <section className="hero">
       <div className="hero-eyebrow">
@@ -62,17 +68,11 @@ export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Prop
         dense vectors, sparse BM25, hybrid fusion, and image search.
       </p>
 
-      {/* SEARCH BAR */}
+      {/* Search bar */}
       <div className="search-outer">
         <div className="search-glow-ring" />
         <form className="search-bar" onSubmit={handleSubmit}>
-          <button
-            type="button"
-            className="search-icon-btn"
-            aria-label="Search"
-          >
-            <i className="ti ti-search" aria-hidden="true" />
-          </button>
+          <span className="search-icon-btn" aria-hidden="true">🔍</span>
 
           <input
             className="search-input"
@@ -97,37 +97,31 @@ export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Prop
               className={`mode-btn ${mode === "text" ? "active" : ""}`}
               onClick={() => switchMode("text")}
             >
-              <i className="ti ti-typography" aria-hidden="true" />
               Text
             </button>
             <button
               type="button"
-              className={`mode-btn img ${mode === "image" ? "active img" : ""}`}
+              className={`mode-btn ${mode === "image" ? "active img" : ""}`}
               onClick={() => switchMode("image")}
             >
-              <i className="ti ti-camera" aria-hidden="true" />
-              Image
+              📷 Image
             </button>
           </div>
 
           <button
             type="submit"
             className="search-submit"
-            disabled={
-              isLoading ||
-              (mode === "text" && !query.trim()) ||
-              (mode === "image" && !imageUrl.trim())
-            }
+            disabled={!canSubmit}
           >
             {isLoading ? "..." : "Search"}
           </button>
         </form>
       </div>
 
-      {/* Image URL input — shown when image mode active */}
+      {/* Image URL input */}
       {mode === "image" && (
         <div className="image-url-row">
-          {imgValid && (
+          {imgValid && imageUrl && (
             <img
               className="image-preview-thumb"
               src={imageUrl}
@@ -144,7 +138,9 @@ export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Prop
               setImageUrl(e.target.value);
               setImgValid(false);
             }}
-            onBlur={() => imageUrl.trim() && setImgValid(true)}
+            onBlur={() => {
+              if (imageUrl.trim()) setImgValid(true);
+            }}
             autoFocus
           />
         </div>
@@ -154,12 +150,7 @@ export function SearchBar({ onSearch, isLoading, onModeChange, activeTab }: Prop
       {mode === "text" && (
         <div className="chips">
           {SUGGESTIONS.map(s => (
-            <button
-              key={s}
-              type="button"
-              className="chip"
-              onClick={() => handleSuggestion(s)}
-            >
+            <button key={s} type="button" className="chip" onClick={() => handleSuggestion(s)}>
               {s}
             </button>
           ))}
