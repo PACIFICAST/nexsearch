@@ -1,4 +1,4 @@
-import { SearchResponse } from "../api";
+import type { SearchResponse } from "../api";
 import { ProductCard, SkeletonCard } from "./ProductCard";
 
 interface Props {

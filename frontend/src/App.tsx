@@ -5,15 +5,13 @@ import { ComparisonPanel } from "./components/ComparisonPanel";
 import {
   searchProducts,
   dislikeProduct,
-  SearchResponse,
+  type SearchResponse,
 } from "./api";
 
 export default function App() {
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [likedIds, setLikedIds] = useState<string[]>([]);
-  const [dislikedIds, setDislikedIds] = useState<string[]>([]);
 
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
@@ -21,9 +19,6 @@ export default function App() {
     try {
       const data = await searchProducts(query, 8);
       setResults(data);
-      // Reset feedback on new search
-      setLikedIds([]);
-      setDislikedIds([]);
     } catch (e) {
       setError("Search failed. Make sure the backend is running.");
       console.error(e);
@@ -32,17 +27,7 @@ export default function App() {
     }
   }, []);
 
-  const handleLike = useCallback((id: string) => {
-    setLikedIds((prev) =>
-      prev.includes(id) ? prev : [...prev, id]
-    );
-  }, []);
-
   const handleDislike = useCallback(async (id: string) => {
-    setDislikedIds((prev) =>
-      prev.includes(id) ? prev : [...prev, id]
-    );
-    // Tell Qdrant about the dislike
     try {
       await dislikeProduct(id);
     } catch (e) {
@@ -77,7 +62,7 @@ export default function App() {
           <ComparisonPanel
             results={results}
             isLoading={isLoading}
-            onLike={handleLike}
+            onLike={() => {}}
             onDislike={handleDislike}
           />
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SearchResult } from "../api";
+import type { SearchResult } from "../api";
 
 interface Props {
   result: SearchResult;
